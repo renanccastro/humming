@@ -6,17 +6,29 @@
 #include <regex.h>
 #include <jansson.h>
 #include "regexp_match.h"
+#define AIRING
+#define FINISHED
+
+typedef struct anime{
+    char* status;
+    char* title;
+    int episode_count;
+    char* synopsis;
+    char* show_type;
+    char** genres;
+    int nGenres;
+} anime;
+
+
 
 size_t writeFunc(void *ptr, size_t size, size_t nmemb, char** string){
     if(ptr == NULL || size > 20)
         return 0;
     strcpy(*string,ptr);
 }
-size_t writeAnimeInfo(void *ptr, size_t size, size_t nmemb, json_t* string){
-    json_error_t * error;
-    printf("\n%s\n",ptr);
-    putchar('a');
-    /*json_load_file((char*)ptr, 0, error);*/
+size_t writeAnimeInfo(void *ptr, size_t size, size_t nmemb, json_t** string){
+    json_error_t error;
+    *string = json_loads(ptr,JSON_DISABLE_EOF_CHECK, &error);
 }
 int isSub(char* string){
     if(er_match("\\]|\\[", string))
@@ -105,10 +117,13 @@ char* getUserToken(char* username, char* password){
 }
 
 
-char* getAnimeInfo(char* animeID){
+anime* getAnimeInfo(char* animeID){
     char* access_token = malloc(sizeof(char)*21);
     char* url = malloc(sizeof(char)*(strlen(animeID) + 42));
-    char* asd;
+    anime* temp = malloc(sizeof(anime));
+    json_t* array;
+    json_t* a;
+    size_t i;
     json_t *animeInfo;
     CURL *curl;
     CURLcode res;
@@ -124,18 +139,31 @@ char* getAnimeInfo(char* animeID){
     curl_easy_setopt(curl,CURLOPT_URL,url);
     curl_easy_setopt(curl,CURLOPT_HTTPHEADER, chunk);
     curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeAnimeInfo);
-    curl_easy_setopt(curl,CURLOPT_WRITEDATA, animeInfo);
+    curl_easy_setopt(curl,CURLOPT_WRITEDATA, &animeInfo);
 
 
     curl_easy_perform(curl);
     curl_easy_cleanup(curl);
 
-    /*if(!animeInfo){*/
-        /*return NULL;*/
-    /*}*/
-    /*json_unpack(animeInfo, "{s:s}", "title", &asd);*/
+    if(!animeInfo){
+        return NULL;
+    }
+    json_unpack(animeInfo, "{s:s s:s s:i s:s s:s}",\
+            "title",&temp->title, "status",&temp->status,\
+            "episode_count",&temp->episode_count,"synopsis",&temp->synopsis,\
+            "show_type", &temp->show_type);
 
-    return asd;
+    array = json_object_get(animeInfo,"genres");
+    temp->nGenres = json_array_size(array);
+    temp->genres = malloc(sizeof(char*)*temp->nGenres);
+    printf("%d", temp->nGenres);
+    for(i=0;i<temp->nGenres;i++){
+        a = json_array_get(array,i);
+        json_unpack(a, "{s:s}","name",&temp->genres[i]);
+    }
+
+
+    return temp;
 
 }
 
@@ -156,7 +184,6 @@ int main(){
     printf("token: %s\n",access_token);
     a = getAnimeID(p, &ep_number);
     printf("%s:%s\n",a,ep_number);
-    printf("\n%s\n", getAnimeInfo(a));
     return 0;
 }
 
