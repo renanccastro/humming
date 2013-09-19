@@ -4,6 +4,7 @@
 #include <curl/curl.h>
 #include <ctype.h>
 #include <regex.h>
+#include <jansson.h>
 #include "regexp_match.h"
 
 size_t writeFunc(void *ptr, size_t size, size_t nmemb, char** string){
@@ -11,7 +12,12 @@ size_t writeFunc(void *ptr, size_t size, size_t nmemb, char** string){
         return 0;
     strcpy(*string,ptr);
 }
-
+size_t writeAnimeInfo(void *ptr, size_t size, size_t nmemb, json_t* string){
+    json_error_t * error;
+    printf("\n%s\n",ptr);
+    putchar('a');
+    /*json_load_file((char*)ptr, 0, error);*/
+}
 int isSub(char* string){
     if(er_match("\\]|\\[", string))
         return 1;
@@ -30,7 +36,7 @@ int isNumerical(char * string){
     return 1;
 }
 
-char* getAnimeID(char* string){
+char* getAnimeID(char* string, char **ep_number){
     char *anime_title = string;
     char *new_anime = malloc(sizeof(char)*strlen(string));
     char *parte;
@@ -50,6 +56,10 @@ char* getAnimeID(char* string){
             if(!isNumerical(parte)){
                 strcat(new_anime, "-");
                 strcat(new_anime, parte);
+            }
+            else{
+                *ep_number = malloc(sizeof(char)*strlen(parte));
+                strcpy(*ep_number, parte);
             }
             printf ("%s\n",parte);
         }
@@ -94,6 +104,41 @@ char* getUserToken(char* username, char* password){
     return access_token;
 }
 
+
+char* getAnimeInfo(char* animeID){
+    char* access_token = malloc(sizeof(char)*21);
+    char* url = malloc(sizeof(char)*(strlen(animeID) + 42));
+    char* asd;
+    json_t *animeInfo;
+    CURL *curl;
+    CURLcode res;
+
+    sprintf(url, "https://hummingbirdv1.p.mashape.com/anime/%s", animeID);
+    struct curl_slist *chunk = NULL;
+
+    curl = curl_easy_init();
+
+    chunk = curl_slist_append(chunk, "X-Mashape-Authorization: qikle7pj3leoShq3yKkWHlBa5wrTJBFO");
+
+
+    curl_easy_setopt(curl,CURLOPT_URL,url);
+    curl_easy_setopt(curl,CURLOPT_HTTPHEADER, chunk);
+    curl_easy_setopt(curl,CURLOPT_WRITEFUNCTION, writeAnimeInfo);
+    curl_easy_setopt(curl,CURLOPT_WRITEDATA, animeInfo);
+
+
+    curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+
+    /*if(!animeInfo){*/
+        /*return NULL;*/
+    /*}*/
+    /*json_unpack(animeInfo, "{s:s}", "title", &asd);*/
+
+    return asd;
+
+}
+
 int main(){
     char username[]="renanccastro@gmail.com";
     char senha[]="123";
@@ -101,6 +146,7 @@ int main(){
 
     char post[500];
     char p[] ="[UTW]Rapunzel.[UTW-Mazui]_Toaru_Kagaku_no_Railgun_S_-_15_[720p][CFCB76A2].mkv";
+    char *ep_number;
     char *a;
     char *anime_title = p;
     char *access_token = NULL;
@@ -108,8 +154,9 @@ int main(){
     access_token = getUserToken(username, senha);
 
     printf("token: %s\n",access_token);
-    a = getAnimeID(p);
-    printf("%s",a);
+    a = getAnimeID(p, &ep_number);
+    printf("%s:%s\n",a,ep_number);
+    printf("\n%s\n", getAnimeInfo(a));
     return 0;
 }
 
