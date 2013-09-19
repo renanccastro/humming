@@ -7,7 +7,8 @@
 #include "regexp_match.h"
 
 size_t writeFunc(void *ptr, size_t size, size_t nmemb, char** string){
-    *string = malloc(sizeof(char)*size);
+    if(ptr == NULL || size > 20)
+        return 0;
     strcpy(*string,ptr);
 }
 
@@ -21,12 +22,19 @@ int isVideoFormat(char* string){
         return 1;
     return 0;
 }
+int isNumerical(char * string){
+    int i;
+    for(i=0; i<strlen(string); i++)
+        if(!(string[i] >= '0' && string[i] <= '9'))
+            return 0;
+    return 1;
+}
 
-//falta implementar a parte de tratar as chunks e ver se sao nomes, etc.
 char* getAnimeID(char* string){
     char *anime_title = string;
     char *new_anime = malloc(sizeof(char)*strlen(string));
     char *parte;
+    int i;
     char *p;
     for ( ; *anime_title; ++anime_title)
     {
@@ -35,24 +43,30 @@ char* getAnimeID(char* string){
     }
 
     parte = strtok (string," ,.-@");
+    strcpy(new_anime, "-");
     while (parte!= NULL)
     {
         if(!isSub(parte) && !isVideoFormat(parte)){
-            strcat(new_anime, "_");
-            strcat(new_anime, parte);
+            if(!isNumerical(parte)){
+                strcat(new_anime, "-");
+                strcat(new_anime, parte);
+            }
             printf ("%s\n",parte);
         }
 
         parte = strtok (NULL, " ,.-@");
     }
-    if(new_anime[0] == '_')
-       p = new_anime++;
+    if(new_anime[0] == '-')
+        new_anime+=2;
+    for(i=0;i< strlen(new_anime); i++)
+        if(new_anime[i] >= 'A' && new_anime[i] <= 'Z')
+            new_anime[i] = tolower(new_anime[i]);
     return new_anime;
 }
 
 char* getUserToken(char* username, char* password){
 
-    char* access_token = NULL;
+    char* access_token = malloc(sizeof(char)*21);
     char post[500];
     CURL *curl;
     CURLcode res;
@@ -82,11 +96,11 @@ char* getUserToken(char* username, char* password){
 
 int main(){
     char username[]="renanccastro@gmail.com";
-
+    char senha[]="123";
 
 
     char post[500];
-    char p[] = "[UTW]_Fate_Kaleid_Liner_Prisma_Ilya_-_03_[h264-720p][87A1BBBA].mkv";
+    char p[] ="[UTW]Rapunzel.[UTW-Mazui]_Toaru_Kagaku_no_Railgun_S_-_15_[720p][CFCB76A2].mkv";
     char *a;
     char *anime_title = p;
     char *access_token = NULL;
