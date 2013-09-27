@@ -10,6 +10,7 @@
 #define FINISHED
 
 typedef struct anime{
+    char* id;
     char* status;
     char* title;
     int episode_count;
@@ -19,7 +20,23 @@ typedef struct anime{
     int nGenres;
 } anime;
 
+typedef struct configuration{
+    char* username;
+    char* password;
+    char* mashape_key;
+    char* anime_folder;
+    char* mplayer_command;
+} config;
 
+int removeSubString(char*src, char*sub){
+    char *p;
+    if ((p=strstr(src,sub)) != NULL)
+    {
+        memmove(p,p+strlen(sub), strlen(p+strlen(sub))+1);
+        return 1;
+    }
+    return 0;
+}
 
 size_t writeFunc(void *ptr, size_t size, size_t nmemb, char** string){
     if(ptr == NULL || size > 20)
@@ -36,7 +53,7 @@ int isSub(char* string){
     return 0;
 }
 int isVideoFormat(char* string){
-    if(er_match("mkv|avi|mpg|mp4|rmvb|mpeg|wmv", string))
+    if(er_match("CR|CA|mkv|avi|mpg|mp4|rmvb|mpeg|wmv|1280x720|hi10p|aac|mp3|flac",string))
         return 1;
     return 0;
 }
@@ -60,7 +77,7 @@ char* getAnimeID(char* string, char **ep_number){
             *(anime_title) = '-';
     }
 
-    parte = strtok (string," ,.-@");
+    parte = strtok (string," (,;.-@");
     strcpy(new_anime, "-");
     while (parte!= NULL)
     {
@@ -73,10 +90,9 @@ char* getAnimeID(char* string, char **ep_number){
                 *ep_number = malloc(sizeof(char)*strlen(parte));
                 strcpy(*ep_number, parte);
             }
-            printf ("%s\n",parte);
         }
 
-        parte = strtok (NULL, " ,.-@");
+        parte = strtok (NULL, " ;,.(-@");
     }
     if(new_anime[0] == '-')
         new_anime+=2;
@@ -86,7 +102,7 @@ char* getAnimeID(char* string, char **ep_number){
     return new_anime;
 }
 
-char* getUserToken(char* username, char* password){
+char* getUserToken(config preferences){
 
     char* access_token = malloc(sizeof(char)*21);
     char post[500];
@@ -97,7 +113,7 @@ char* getUserToken(char* username, char* password){
 
     curl = curl_easy_init();
 
-    chunk = curl_slist_append(chunk, "X-Mashape-Authorization: qikle7pj3leoShq3yKkWHlBa5wrTJBFO");
+    chunk = curl_slist_append(chunk, preferences.mashape_key);
 
 
     curl_easy_setopt(curl,CURLOPT_URL,"https://hummingbirdv1.p.mashape.com/users/authenticate");
@@ -106,7 +122,7 @@ char* getUserToken(char* username, char* password){
     curl_easy_setopt(curl,CURLOPT_WRITEDATA, &access_token);
 
 
-    sprintf(post,"email=%s&password=%s",username,password);
+    sprintf(post,"email=%s&password=%s",preferences.username,preferences.password);
 
     curl_easy_setopt(curl,CURLOPT_POSTFIELDS, post);
 
@@ -117,7 +133,7 @@ char* getUserToken(char* username, char* password){
 }
 
 
-anime* getAnimeInfo(char* animeID){
+anime* getAnimeInfo(char* animeID, config preferences){
     char* access_token = malloc(sizeof(char)*21);
     char* url = malloc(sizeof(char)*(strlen(animeID) + 42));
     anime* temp = malloc(sizeof(anime));
@@ -133,7 +149,7 @@ anime* getAnimeInfo(char* animeID){
 
     curl = curl_easy_init();
 
-    chunk = curl_slist_append(chunk, "X-Mashape-Authorization: qikle7pj3leoShq3yKkWHlBa5wrTJBFO");
+    chunk = curl_slist_append(chunk, preferences.mashape_key);
 
 
     curl_easy_setopt(curl,CURLOPT_URL,url);
@@ -148,8 +164,8 @@ anime* getAnimeInfo(char* animeID){
     if(!animeInfo){
         return NULL;
     }
-    json_unpack(animeInfo, "{s:s s:s s:i s:s s:s}",\
-            "title",&temp->title, "status",&temp->status,\
+    json_unpack(animeInfo, "{s:s s:s s:s s:i s:s s:s}",\
+            "slug",&temp->id,"title",&temp->title, "status",&temp->status,\
             "episode_count",&temp->episode_count,"synopsis",&temp->synopsis,\
             "show_type", &temp->show_type);
 
@@ -166,24 +182,52 @@ anime* getAnimeInfo(char* animeID){
     return temp;
 
 }
+char** getCurrentPlayingAnime(config preferences){
+
+    FILE *fp;
+    int status;
+    char path[1035];
+    char** vetor = calloc(2,sizeof(char*));
+
+    /* Open the command for reading. */
+    fp = popen(preferences.mplayer_command, "r");
+    if (fp == NULL) {
+        printf("Failed to run command\n" );
+        exit;
+    }
+
+    /* Read the output a line at a time - output it. */
+    fgets(path, sizeof(path)-1, fp);
+    if(!removeSubString(path, preferences.anime_folder))
+        return NULL;
+
+    /* close */
+    pclose(fp);
+    vetor[0] = getAnimeID(path, &vetor[1]);
+    return vetor;
+}
 
 int main(){
     char username[]="renanccastro@gmail.com";
-    char senha[]="123";
-
-
-    char post[500];
-    char p[] ="[UTW]Rapunzel.[UTW-Mazui]_Toaru_Kagaku_no_Railgun_S_-_15_[720p][CFCB76A2].mkv";
+    char senha[]="";
+    config preferences;
+    preferences.username = username;
+    preferences.password = senha;
+    preferences.mashape_key = "X-Mashape-Authorization: qikle7pj3leoShq3yKkWHlBa5wrTJBFO";
+    preferences.anime_folder = "/home/squarezin/Downloads/";
+    char* mplayer_command = malloc(sizeof(char)*(67+strlen(preferences.anime_folder)));
+    sprintf(mplayer_command,"lsof -p $(pidof mplayer) | grep \"%s\" |  cut --delimiter=' ' -f29-",preferences.anime_folder);
+    preferences.mplayer_command = mplayer_command;
     char *ep_number;
     char *a;
-    char *anime_title = p;
     char *access_token = NULL;
 
-    access_token = getUserToken(username, senha);
+    access_token = getUserToken(preferences);
 
     printf("token: %s\n",access_token);
-    a = getAnimeID(p, &ep_number);
-    printf("%s:%s\n",a,ep_number);
+    /*a = getAnimeID(p, &ep_number);*/
+    /*printf("%s:%s\n",a,ep_number);*/
+    printf("%s",getCurrentPlayingAnime(preferences)[0]);
     return 0;
 }
 
