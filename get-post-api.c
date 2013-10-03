@@ -198,6 +198,8 @@ char** getCurrentPlayingAnime(config preferences){
 
     /* Read the output a line at a time - output it. */
     fgets(path, sizeof(path)-1, fp);
+    /*if(!strstr(path, preferences.anime_folder))*/
+        /*return NULL;*/
     if(!removeSubString(path, preferences.anime_folder))
         return NULL;
 
@@ -216,7 +218,7 @@ int main(){
     preferences.mashape_key = "X-Mashape-Authorization: qikle7pj3leoShq3yKkWHlBa5wrTJBFO";
     preferences.anime_folder = "/home/squarezin/Downloads/";
     char* mplayer_command = malloc(sizeof(char)*(67+strlen(preferences.anime_folder)));
-    sprintf(mplayer_command,"lsof -p $(pidof mplayer) | grep \"%s\" |  cut --delimiter=' ' -f29-",preferences.anime_folder);
+    sprintf(mplayer_command,"lsof -p $(pidof mplayer) 2> error | grep \"%s\" |  cut --delimiter=' ' -f29-",preferences.anime_folder);
     preferences.mplayer_command = mplayer_command;
     char *ep_number;
     char *a;
@@ -227,7 +229,11 @@ int main(){
     printf("token: %s\n",access_token);
     /*a = getAnimeID(p, &ep_number);*/
     /*printf("%s:%s\n",a,ep_number);*/
-    printf("%s",getCurrentPlayingAnime(preferences)[0]);
+    char** vet = getCurrentPlayingAnime(preferences);
+    if(vet)
+        printf("%s",getCurrentPlayingAnime(preferences)[0]);
+    else
+        printf("Not running mplayer at this moment, or couldn't detect it.\n");
     return 0;
 }
 
