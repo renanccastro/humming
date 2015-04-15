@@ -4,7 +4,6 @@
 #include <curl/curl.h>
 #include <ctype.h>
 #include <regex.h>
-#include <jansson.h>
 #include "regexp_match.h"
 #define AIRING
 #define FINISHED
@@ -42,11 +41,12 @@ size_t writeFunc(void *ptr, size_t size, size_t nmemb, char** string){
     if(ptr == NULL || size > 20)
         return 0;
     strcpy(*string,ptr);
+	return 1;
 }
-size_t writeAnimeInfo(void *ptr, size_t size, size_t nmemb, json_t** string){
-    json_error_t error;
-    *string = json_loads(ptr,JSON_DISABLE_EOF_CHECK, &error);
-}
+//size_t writeAnimeInfo(void *ptr, size_t size, size_t nmemb, json_t** string){
+//    json_error_t error;
+//   *string = json_loads(ptr,JSON_DISABLE_EOF_CHECK, &error);
+//}
 int isSub(char* string){
     if(er_match("\\]|\\[", string))
         return 1;
@@ -70,7 +70,6 @@ char* getAnimeID(char* string, char **ep_number){
     char *new_anime = malloc(sizeof(char)*strlen(string));
     char *parte;
     int i;
-    char *p;
     for ( ; *anime_title; ++anime_title)
     {
         if(*anime_title == '_')
@@ -107,7 +106,6 @@ char* getUserToken(config preferences){
     char* access_token = malloc(sizeof(char)*21);
     char post[500];
     CURL *curl;
-    CURLcode res;
 
     struct curl_slist *chunk = NULL;
 
@@ -137,10 +135,7 @@ anime* getAnimeInfo(char* animeID, config preferences){
     char* access_token = malloc(sizeof(char)*21);
     char* url = malloc(sizeof(char)*(strlen(animeID) + 42));
     anime* temp = malloc(sizeof(anime));
-    json_t* array;
-    json_t* a;
     size_t i;
-    json_t *animeInfo;
     CURL *curl;
     CURLcode res;
 
